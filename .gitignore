@@ -19,3 +19,9 @@ supabase/.temp/
 
 .DS_Store
 Thumbs.db
+
+# Sibling apps / reference dirs — not part of the Vajra-Acharya repo
+unified-telegram-bot/
+vivek-acharya-app-main/
+*.zip
+__pycache__/

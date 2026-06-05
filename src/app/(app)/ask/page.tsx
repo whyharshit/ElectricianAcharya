@@ -13,6 +13,14 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Tag } from '@/components/ui/Tag';
 import { Icon } from '@/components/ui/Icon';
 import GeminiLiveOverlay from '@/components/GeminiLiveOverlay';
+import HeygenLiveOverlay from '@/components/HeygenLiveOverlay';
+import HeygenAvatarPanel from '@/components/HeygenAvatarPanel';
+import { releaseGlobalHeygenSession } from '@/lib/heygen-global-client';
+import {
+  HEYGEN_VIDEO_ELEMENT_ID,
+  HEYGEN_INLINE_VIDEO_ELEMENT_ID,
+} from '@/lib/heygen-constants';
+import { useHeygenAvatar } from '@/hooks/useHeygenAvatar';
 
 type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -27,6 +35,14 @@ export default function AskPage() {
   const [loading, setLoading] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const [avatarLive, setAvatarLive] = useState(false);
+  const avatarSession = useHeygenAvatar({
+    videoElementId: avatarOpen ? HEYGEN_VIDEO_ELEMENT_ID : HEYGEN_INLINE_VIDEO_ELEMENT_ID,
+    lang,
+    moduleId: selectedModuleId,
+    active: avatarLive || avatarOpen,
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -49,6 +65,15 @@ export default function AskPage() {
       audioQueueRef.current = null;
     };
   }, [selectedModuleId]);
+
+  // Release the HeyGen WebRTC session when leaving Ask — frees the concurrent slot.
+  useEffect(() => {
+    return () => {
+      setAvatarLive(false);
+      setAvatarOpen(false);
+      void releaseGlobalHeygenSession();
+    };
+  }, []);
 
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
@@ -160,6 +185,18 @@ export default function AskPage() {
     }
   }
 
+  function handleAvatarTurn(turn: { userText: string; modelText: string }) {
+    if (turn.userText) addChatMessage(selectedModuleId, 'user', turn.userText);
+    if (turn.modelText) addChatMessage(selectedModuleId, 'assistant', turn.modelText);
+    if (turn.userText || turn.modelText) {
+      syncChatMessage(selectedModuleId, lang, turn.userText, turn.modelText);
+      trackEvent('voice_ask_turn', selectedModuleId, { lang, heygen: true });
+    }
+  }
+
+  const avatarLabel =
+    lang === 'bn' ? 'লাইভ অ্যাভাটার' : lang === 'hi' ? 'लाइव अवतार' : 'Live avatar';
+
   const quickActions = getQuickActions(lang);
 
   const stateLabel = voiceState === 'thinking'
@@ -187,6 +224,24 @@ export default function AskPage() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col w-full max-w-3xl mx-auto">
+      {/* Live HeyGen avatar — always visible on Ask */}
+      <div className="shrink-0 px-4 lg:px-6 pt-3 pb-1 border-b border-line/60 bg-paper">
+        <HeygenAvatarPanel
+          lang={lang}
+          moduleId={selectedModuleId}
+          live={avatarLive && !avatarOpen}
+          onLiveChange={setAvatarLive}
+          session={avatarSession}
+        />
+        <p className="text-center text-[10px] text-muted mt-1">
+          {lang === 'bn'
+            ? 'লাইভ কথা বলতে Start চাপো · ক্যামেরা = পূর্ণ স্ক্রিন'
+            : lang === 'hi'
+            ? 'बोलने के लिए Start दबाएँ · कैमरा = फुल स्क्रीन'
+            : 'Tap Start to talk live · camera = fullscreen'}
+        </p>
+      </div>
+
       {/* Messages — internal scroll */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 lg:px-6 py-4 space-y-3 hide-scrollbar">
         {renderMessages.length === 0 && (
@@ -279,6 +334,19 @@ export default function AskPage() {
           </button>
 
           <button
+            onClick={() => {
+              if (!avatarLive && !avatarOpen) setAvatarLive(true);
+              setAvatarOpen(true);
+            }}
+            disabled={loading || voiceState === 'thinking'}
+            aria-label={avatarLabel}
+            title={avatarLabel}
+            className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-cream text-ink border border-line hover:bg-sage disabled:opacity-40"
+          >
+            <Icon name="cam" size={18} />
+          </button>
+
+          <button
             onClick={() => setVoiceOpen(true)}
             disabled={voiceState === 'thinking'}
             aria-label={lang === 'bn' ? 'ভয়েস কথোপকথন খুলুন' : lang === 'hi' ? 'वॉइस बातचीत खोलें' : 'Open voice conversation'}
@@ -326,6 +394,18 @@ export default function AskPage() {
         subtitle={selectedModuleId}
         onClose={() => setVoiceOpen(false)}
         onTurnComplete={handleLiveTurn}
+      />
+      <HeygenLiveOverlay
+        open={avatarOpen}
+        lang={lang}
+        title={currentModule ? getTitle(currentModule, lang) : 'Vajra Acharya'}
+        subtitle={selectedModuleId}
+        session={avatarSession}
+        onClose={() => {
+          setAvatarOpen(false);
+          setAvatarLive(false);
+        }}
+        onTurnComplete={handleAvatarTurn}
       />
     </div>
   );

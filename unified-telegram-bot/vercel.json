@@ -1,6 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/video", "destination": "/api/video" },
-    { "source": "/progress", "destination": "/api/progress" }
-  ]
-}

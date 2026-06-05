@@ -254,6 +254,16 @@ const ai = {
   }> => {
     return await request("/api/gemini-live-token", { json: payload });
   },
+
+  heygenSessionToken: async (payload: {
+    lang: Lang;
+  }): Promise<{ sessionToken: string; sessionId: string | null }> => {
+    const learnerId = await currentLearnerId();
+    return await request<{ sessionToken: string; sessionId: string | null }>(
+      "/api/heygen/session-token",
+      { json: { ...payload, learnerId } },
+    );
+  },
 };
 
 // ================================================================
