@@ -5,6 +5,7 @@ import { rateLimit, rateLimitKey } from "@/lib/rate-limit";
 import { normalizeIndianPhone } from "@/lib/phone";
 import { setLearnerCookie } from "@/lib/server/phone-auth";
 import { hashOtp, isOtpFormat } from "@/lib/server/otp";
+import { isTestLogin } from "@/lib/server/test-login";
 
 export const runtime = "nodejs";
 export const preferredRegion = "bom1";
@@ -29,41 +30,50 @@ export async function POST(req: NextRequest) {
   if (!phone) return NextResponse.json({ error: "Invalid phone number." }, { status: 400 });
   if (!isOtpFormat(otp)) return NextResponse.json({ error: "Enter the 6-digit OTP." }, { status: 400 });
 
-  const { data: otpRow, error: otpLookupError } = await dbGunakul
-    .from("phone_otps")
-    .select("id, otp_hash, attempts, expires_at, consumed_at")
-    .eq("phone", phone)
-    .is("consumed_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Test-login bypass: the configured test number + fixed LOGIN_TEST_OTP skips
+  // the SMS/DB OTP check entirely. Off unless both env vars are set.
+  const bypass = isTestLogin(phone, otp);
+  let otpRowId: string | null = null;
 
-  if (otpLookupError) {
-    console.error("otp lookup error:", otpLookupError);
-    return NextResponse.json({ error: "OTP service is not configured." }, { status: 502 });
-  }
-
-  if (!otpRow) {
-    return NextResponse.json({ error: "OTP expired. Request a new OTP." }, { status: 401 });
-  }
-
-  const attempts = Number((otpRow as { attempts?: number }).attempts || 0);
-  if (attempts >= 5) {
-    return NextResponse.json({ error: "Too many wrong attempts. Request a new OTP." }, { status: 401 });
-  }
-
-  const expected = String((otpRow as { otp_hash: string }).otp_hash || "");
-  const actual = hashOtp(phone, otp);
-  const valid = expected.length === actual.length &&
-    cryptoSafeEqual(expected, actual);
-
-  if (!valid) {
-    await dbGunakul
+  if (!bypass) {
+    const { data: otpRow, error: otpLookupError } = await dbGunakul
       .from("phone_otps")
-      .update({ attempts: attempts + 1 })
-      .eq("id", (otpRow as { id: string }).id);
-    return NextResponse.json({ error: "Incorrect OTP. Try again." }, { status: 401 });
+      .select("id, otp_hash, attempts, expires_at, consumed_at")
+      .eq("phone", phone)
+      .is("consumed_at", null)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (otpLookupError) {
+      console.error("otp lookup error:", otpLookupError);
+      return NextResponse.json({ error: "OTP service is not configured." }, { status: 502 });
+    }
+
+    if (!otpRow) {
+      return NextResponse.json({ error: "OTP expired. Request a new OTP." }, { status: 401 });
+    }
+
+    const attempts = Number((otpRow as { attempts?: number }).attempts || 0);
+    if (attempts >= 5) {
+      return NextResponse.json({ error: "Too many wrong attempts. Request a new OTP." }, { status: 401 });
+    }
+
+    const expected = String((otpRow as { otp_hash: string }).otp_hash || "");
+    const actual = hashOtp(phone, otp);
+    const valid = expected.length === actual.length &&
+      cryptoSafeEqual(expected, actual);
+
+    if (!valid) {
+      await dbGunakul
+        .from("phone_otps")
+        .update({ attempts: attempts + 1 })
+        .eq("id", (otpRow as { id: string }).id);
+      return NextResponse.json({ error: "Incorrect OTP. Try again." }, { status: 401 });
+    }
+
+    otpRowId = (otpRow as { id: string }).id;
   }
 
   const { data, error } = await dbGunakul
@@ -108,10 +118,12 @@ export async function POST(req: NextRequest) {
       preferredLang: (data.preferred_lang as string) || "en",
     },
   });
-  await dbGunakul
-    .from("phone_otps")
-    .update({ consumed_at: new Date().toISOString() })
-    .eq("id", (otpRow as { id: string }).id);
+  if (otpRowId) {
+    await dbGunakul
+      .from("phone_otps")
+      .update({ consumed_at: new Date().toISOString() })
+      .eq("id", otpRowId);
+  }
   setLearnerCookie(res, session);
   return res;
 }
