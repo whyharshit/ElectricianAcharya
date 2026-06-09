@@ -255,14 +255,24 @@ const ai = {
     return await request("/api/gemini-live-token", { json: payload });
   },
 
-  heygenSessionToken: async (payload: {
+  /** Create a Tavus CVI conversation; returns the Daily room url to join. */
+  tavusConversation: async (payload: {
     lang: Lang;
-  }): Promise<{ sessionToken: string; sessionId: string | null }> => {
+  }): Promise<{ conversationUrl: string; conversationId: string | null; status: string | null }> => {
     const learnerId = await currentLearnerId();
-    return await request<{ sessionToken: string; sessionId: string | null }>(
-      "/api/heygen/session-token",
-      { json: { ...payload, learnerId } },
-    );
+    return await request<{
+      conversationUrl: string;
+      conversationId: string | null;
+      status: string | null;
+    }>("/api/tavus/conversation", { json: { ...payload, learnerId } });
+  },
+
+  /** End a Tavus conversation so it stops billing once the learner leaves. */
+  tavusEndConversation: async (conversationId: string): Promise<void> => {
+    await request("/api/tavus/conversation", {
+      method: "DELETE",
+      json: { conversationId },
+    });
   },
 };
 

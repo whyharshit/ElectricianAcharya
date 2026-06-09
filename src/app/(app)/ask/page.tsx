@@ -13,14 +13,14 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Tag } from '@/components/ui/Tag';
 import { Icon } from '@/components/ui/Icon';
 import GeminiLiveOverlay from '@/components/GeminiLiveOverlay';
-import HeygenLiveOverlay from '@/components/HeygenLiveOverlay';
-import HeygenAvatarPanel from '@/components/HeygenAvatarPanel';
-import { releaseGlobalHeygenSession } from '@/lib/heygen-global-client';
+import TavusLiveOverlay from '@/components/TavusLiveOverlay';
+import TavusAvatarPanel from '@/components/TavusAvatarPanel';
+import { releaseGlobalTavusSession } from '@/lib/tavus-global-client';
 import {
-  HEYGEN_VIDEO_ELEMENT_ID,
-  HEYGEN_INLINE_VIDEO_ELEMENT_ID,
-} from '@/lib/heygen-constants';
-import { useHeygenAvatar } from '@/hooks/useHeygenAvatar';
+  TAVUS_VIDEO_ELEMENT_ID,
+  TAVUS_INLINE_VIDEO_ELEMENT_ID,
+} from '@/lib/tavus-constants';
+import { useTavusAvatar } from '@/hooks/useTavusAvatar';
 
 type VoiceState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -37,8 +37,8 @@ export default function AskPage() {
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [avatarLive, setAvatarLive] = useState(false);
-  const avatarSession = useHeygenAvatar({
-    videoElementId: avatarOpen ? HEYGEN_VIDEO_ELEMENT_ID : HEYGEN_INLINE_VIDEO_ELEMENT_ID,
+  const avatarSession = useTavusAvatar({
+    videoElementId: avatarOpen ? TAVUS_VIDEO_ELEMENT_ID : TAVUS_INLINE_VIDEO_ELEMENT_ID,
     lang,
     moduleId: selectedModuleId,
     active: avatarLive || avatarOpen,
@@ -66,12 +66,13 @@ export default function AskPage() {
     };
   }, [selectedModuleId]);
 
-  // Release the HeyGen WebRTC session when leaving Ask — frees the concurrent slot.
+  // Release the Tavus WebRTC session when leaving Ask — ends the conversation
+  // (stops billing) and frees the slot.
   useEffect(() => {
     return () => {
       setAvatarLive(false);
       setAvatarOpen(false);
-      void releaseGlobalHeygenSession();
+      void releaseGlobalTavusSession();
     };
   }, []);
 
@@ -190,7 +191,7 @@ export default function AskPage() {
     if (turn.modelText) addChatMessage(selectedModuleId, 'assistant', turn.modelText);
     if (turn.userText || turn.modelText) {
       syncChatMessage(selectedModuleId, lang, turn.userText, turn.modelText);
-      trackEvent('voice_ask_turn', selectedModuleId, { lang, heygen: true });
+      trackEvent('voice_ask_turn', selectedModuleId, { lang, tavus: true });
     }
   }
 
@@ -224,9 +225,9 @@ export default function AskPage() {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col w-full max-w-3xl mx-auto">
-      {/* Live HeyGen avatar — always visible on Ask */}
+      {/* Live Tavus avatar — always visible on Ask */}
       <div className="shrink-0 px-4 lg:px-6 pt-3 pb-1 border-b border-line/60 bg-paper">
-        <HeygenAvatarPanel
+        <TavusAvatarPanel
           lang={lang}
           moduleId={selectedModuleId}
           live={avatarLive && !avatarOpen}
@@ -395,7 +396,7 @@ export default function AskPage() {
         onClose={() => setVoiceOpen(false)}
         onTurnComplete={handleLiveTurn}
       />
-      <HeygenLiveOverlay
+      <TavusLiveOverlay
         open={avatarOpen}
         lang={lang}
         title={currentModule ? getTitle(currentModule, lang) : 'Vajra Acharya'}

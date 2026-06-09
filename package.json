@@ -11,8 +11,8 @@
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.71",
     "@ai-sdk/gateway": "1.0.39",
+    "@daily-co/daily-js": "^0.84.0",
     "@google/generative-ai": "^0.21.0",
-    "@heygen/liveavatar-web-sdk": "^0.0.18",
     "@supabase/supabase-js": "2.103.3",
     "ai": "6.0.168",
     "next": "16.2.4",

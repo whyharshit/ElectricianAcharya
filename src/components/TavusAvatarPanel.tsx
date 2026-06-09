@@ -1,8 +1,8 @@
 "use client";
 
 import type { Lang } from "@/lib/types";
-import { HEYGEN_INLINE_VIDEO_ELEMENT_ID } from "@/lib/heygen-constants";
-import type { HeygenAvatarSession } from "@/hooks/useHeygenAvatar";
+import { TAVUS_INLINE_VIDEO_ELEMENT_ID } from "@/lib/tavus-constants";
+import type { TavusAvatarSession } from "@/hooks/useTavusAvatar";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
 import { Icon } from "@/components/ui/Icon";
@@ -45,10 +45,10 @@ interface Props {
   moduleId: string;
   live: boolean;
   onLiveChange: (live: boolean) => void;
-  session: HeygenAvatarSession;
+  session: TavusAvatarSession;
 }
 
-export default function HeygenAvatarPanel({ lang, live, onLiveChange, session }: Props) {
+export default function TavusAvatarPanel({ lang, live, onLiveChange, session }: Props) {
   const c = copy[lang];
   const { state, error, userLine, assistantLine, disconnect } = session;
 
@@ -98,7 +98,7 @@ export default function HeygenAvatarPanel({ lang, live, onLiveChange, session }:
       <div className="relative w-full aspect-[4/5] max-h-[min(42vh,320px)] rounded-2xl overflow-hidden bg-forest-deep border border-line shadow-md">
         {showVideo ? (
           <video
-            id={HEYGEN_INLINE_VIDEO_ELEMENT_ID}
+            id={TAVUS_INLINE_VIDEO_ELEMENT_ID}
             autoPlay
             playsInline
             className="absolute inset-0 w-full h-full object-cover"

@@ -1,8 +1,8 @@
 "use client";
 
 import type { Lang } from "@/lib/types";
-import { HEYGEN_VIDEO_ELEMENT_ID } from "@/lib/heygen-constants";
-import type { HeygenAvatarSession } from "@/hooks/useHeygenAvatar";
+import { TAVUS_VIDEO_ELEMENT_ID } from "@/lib/tavus-constants";
+import type { TavusAvatarSession } from "@/hooks/useTavusAvatar";
 import { Icon } from "@/components/ui/Icon";
 import { Tag } from "@/components/ui/Tag";
 
@@ -13,7 +13,7 @@ interface Props {
   subtitle?: string;
   onClose: () => void;
   onTurnComplete?: (turn: { userText: string; modelText: string }) => void;
-  session: HeygenAvatarSession;
+  session: TavusAvatarSession;
 }
 
 const copy = {
@@ -40,7 +40,7 @@ const copy = {
   },
 } as const;
 
-export default function HeygenLiveOverlay({
+export default function TavusLiveOverlay({
   open,
   lang,
   title,
@@ -94,7 +94,7 @@ export default function HeygenLiveOverlay({
       <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 pb-6">
         <div className="w-full max-w-md aspect-[3/4] max-h-[55vh] rounded-2xl overflow-hidden bg-black/40 border border-cream/15 shadow-2xl">
           <video
-            id={HEYGEN_VIDEO_ELEMENT_ID}
+            id={TAVUS_VIDEO_ELEMENT_ID}
             autoPlay
             playsInline
             className="w-full h-full object-cover"
